@@ -17,23 +17,22 @@ def Assets():
 ListAssetsDir = Assets()
 
 class PlayMusica():
-    def __init__(self, NomeMusica, CaminhoMusica, VolumeInicial = 0.5, PlayList = [], DiretorioPlayList = None):
+    def __init__(self, NomeMusica, CaminhoMusica, VolumeInicial = 0.05, PlayList = [], DiretorioPlayList = None):
         self.NomeMusica = NomeMusica
         self.CaminhoMusica = CaminhoMusica
-        self.VolumeInicial = VolumeInicial
+        self.VolumeAtual = VolumeInicial
         self.PlayList = PlayList
         self.DiretorioPlayList = DiretorioPlayList
-        print("PlayList : " + str(self.PlayList))
-        print("Diretorio PlayList : " + self.DiretorioPlayList)
+        self.IndexPlayList = 0
 
 
         layout = [
             [sg.Slider(key="Temporizador", size=(0, 10), range=(0, 1),enable_events=True, resolution=1, disable_number_display=True, orientation="h")],
             [sg.Text("Nome", key="NomeMusica")],
             [sg.Text("0:00", key="Tempo"),
-            #  sg.Button('Anterior',key='Anterior'),
+             sg.Button('Anterior',key='Anterior'),
              sg.Button('Pausar',key='Pausar'),
-            #  sg.Button('Proximo',key='Proximo'),
+             sg.Button('Proximo',key='Proximo'),
              sg.Button('Mutar', key="Mutar"),
              sg.Slider(key="Volume", range=(0, 1), resolution=0.01, enable_events=True, disable_number_display=True, orientation="h"),
              sg.Text("80%", key="VolumeTexto")
@@ -43,13 +42,30 @@ class PlayMusica():
         self.window = sg.Window("Player Musica", layout=layout, element_justification='center', finalize=True, resizable=True, icon=ListAssetsDir['icone'])
         self.window['Temporizador'].expand(True, False, False)
 
-    def IniciandoMusica(self):
+    def IniciandoMusicaPlayList(self):
         mixer.init()
         mixer.music.load(self.CaminhoMusica)
         mixer.music.play()
         self.TimeMusica = 0
 
+    def IniciandoMusica(self,IndiceMusica = -1):
+        if IndiceMusica == -1:
+            mixer.init()
+            mixer.music.load(self.CaminhoMusica)
+            mixer.music.play()
+            self.TimeMusica = 0
+        else:
+            mixer.init()
+            self.IndexPlayList = IndiceMusica
+            self.CaminhoMusica = os.path.join(self.DiretorioPlayList,self.PlayList[IndiceMusica])
+            self.NomeMusica = self.PlayList[IndiceMusica]
+            mixer.music.load(self.CaminhoMusica)
+            mixer.music.play()
+            self.TimeMusica = 0
+            self.AlterarInfoMusicaInicial()
+
     def AlterarVolume(self, Volume):
+        self.VolumeAtual = Volume
         mixer.music.set_volume(Volume)
         self.window['VolumeTexto'].update(f'{int(Volume * 100)}%')
 
@@ -58,19 +74,19 @@ class PlayMusica():
         self.window['NomeMusica'].update(self.NomeMusica)
 
         # Inserindo o tempo total da musica
-        tamanho = mixer.Sound(self.CaminhoMusica)
-        tamanhoSeg = tamanho.get_length()
-        tamanhoMin = int(tamanhoSeg / 60)
-        tamanhoSeg = int(tamanhoSeg - (tamanhoMin * 60))
+        self.tamanho = mixer.Sound(self.CaminhoMusica)
+        self.tamanho = self.tamanho.get_length()
+        tamanhoMin = int(self.tamanho / 60)
+        tamanhoSeg = int(self.tamanho - (tamanhoMin * 60))
         self.tamanhoMusica = '{:01d}:{:02d}'.format(tamanhoMin,tamanhoSeg)
         self.window['Tempo'].update(f'0:00/{self.tamanhoMusica}')
 
         # aumentando o range do Slider(Temporizador) da musica para q eu consega mover segundo por segundo
-        self.window['Temporizador'].update(range=(0,int(tamanho.get_length())))
+        self.window['Temporizador'].update(range=(0,int(self.tamanho)))
 
         # alterar as informações do volume
-        self.window['Volume'].update(self.VolumeInicial)
-        self.AlterarVolume(self.VolumeInicial)
+        self.window['Volume'].update(self.VolumeAtual)
+        self.AlterarVolume(self.VolumeAtual)
 
     def Mutar(self, VolumeAtual):
         if mixer.music.get_volume() == 0:
@@ -82,9 +98,9 @@ class PlayMusica():
             self.window['Volume'].update(0)
 
     def AlterarInfoMusica(self):
-        TempoPecorridoSeg = int(int(mixer.music.get_pos()/1000) + self.TimeMusica)
-        TempoPecorridoMin = int(TempoPecorridoSeg / 60)
-        TempoPecorridoSeg = int(TempoPecorridoSeg - (TempoPecorridoMin * 60))
+        self.TempoPecorridoTotal = int(int(mixer.music.get_pos()/1000) + self.TimeMusica)
+        TempoPecorridoMin = int(self.TempoPecorridoTotal / 60)
+        TempoPecorridoSeg = int(self.TempoPecorridoTotal - (TempoPecorridoMin * 60))
         TempoPecorrido = '{:01d}:{:02d}'.format(TempoPecorridoMin,TempoPecorridoSeg)
         self.window['Tempo'].update(f'{TempoPecorrido}/{self.tamanhoMusica}')
 
@@ -101,7 +117,7 @@ class PlayMusica():
     def MudarPosicaoMusica(self,NovaPosicao):
         mixer.music.play(0, NovaPosicao)
         self.TimeMusica = NovaPosicao
-
+        
         TempoPecorridoSeg = NovaPosicao
         TempoPecorridoMin = int(TempoPecorridoSeg / 60)
         TempoPecorridoSeg = int(TempoPecorridoSeg - (TempoPecorridoMin * 60))
@@ -131,16 +147,26 @@ class PlayMusica():
                 self.Mutar(self.value['Volume'])
 
             elif self.event == 'Temporizador':
-                print(self.value['Temporizador'])
                 self.MudarPosicaoMusica(self.value['Temporizador'])
                 
 
             elif self.event == 'Anterior':
-                pass
+                if self.DiretorioPlayList == None:
+                    self.IniciandoMusica()
+                else:
+                    if self.IndexPlayList - 1 < 0 :
+                        self.IniciandoMusica(len(self.PlayList)-1)
+                    else:
+                        self.IniciandoMusica(self.IndexPlayList-1)
+            elif self.event == 'Proximo' or mixer.music.get_busy() == False:
+                if self.DiretorioPlayList == None:
+                    self.IniciandoMusica()
+                else:
+                    if self.IndexPlayList >= len(self.PlayList)-1 :
+                        self.IniciandoMusica(0)
+                    else:
+                        self.IniciandoMusica(self.IndexPlayList+1)
 
-            elif self.event == 'Proximo':
-                pass
-            
             self.AlterarInfoMusica()
             
 
