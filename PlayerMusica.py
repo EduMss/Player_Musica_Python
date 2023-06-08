@@ -65,7 +65,6 @@ class PlayMusica():
             self.AlterarInfoMusicaInicial()
 
     def AlterarVolume(self, Volume):
-        self.VolumeAtual = Volume
         mixer.music.set_volume(Volume)
         self.window['VolumeTexto'].update(f'{int(Volume * 100)}%')
 
@@ -108,16 +107,18 @@ class PlayMusica():
 
     def Pause(self):
         if mixer.music.get_busy():
+            self.IsPause = True
             mixer.music.pause()
             self.window['Pausar'].update("Play")
         else :
+            self.IsPause = False
             mixer.music.unpause()
             self.window['Pausar'].update("Pause")
 
     def MudarPosicaoMusica(self,NovaPosicao):
         mixer.music.play(0, NovaPosicao)
         self.TimeMusica = NovaPosicao
-        
+
         TempoPecorridoSeg = NovaPosicao
         TempoPecorridoMin = int(TempoPecorridoSeg / 60)
         TempoPecorridoSeg = int(TempoPecorridoSeg - (TempoPecorridoMin * 60))
@@ -158,7 +159,7 @@ class PlayMusica():
                         self.IniciandoMusica(len(self.PlayList)-1)
                     else:
                         self.IniciandoMusica(self.IndexPlayList-1)
-            elif self.event == 'Proximo' or mixer.music.get_busy() == False:
+            elif self.event == 'Proximo':
                 if self.DiretorioPlayList == None:
                     self.IniciandoMusica()
                 else:
@@ -166,6 +167,17 @@ class PlayMusica():
                         self.IniciandoMusica(0)
                     else:
                         self.IniciandoMusica(self.IndexPlayList+1)
+
+            elif mixer.music.get_busy() == False and self.IsPause == False:
+                if self.DiretorioPlayList == None:
+                    self.IniciandoMusica()
+                else:
+                    if self.IndexPlayList >= len(self.PlayList)-1 :
+                        self.IniciandoMusica(0)
+                    else:
+                        self.IniciandoMusica(self.IndexPlayList+1)
+
+            
 
             self.AlterarInfoMusica()
             
